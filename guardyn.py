@@ -17,7 +17,8 @@ CONFIDENCE = 0.5
 WEAPON_CONFIDENCE = 0.85
 PERSON_INDEX = 15
 WEAPON_INDEX = 5
-MAX_IMAGE_WIDTH = 800
+MAX_IMAGE_WIDTH = 420
+MAX_DISPLAY_WIDTH = 850
 CAFFEMODEL = cwd + "/models/" + "MobileNetSSD_deploy.caffemodel"
 PROTOTXT = cwd + "/models/" + "MobileNetSSD_deploy.prototxt.txt"
 
@@ -34,6 +35,7 @@ should_screenshot = False
 blinking = False
 cooldown = False
 cooldown_benchmark = None
+screenshot_frame = False
 blink_count = 0
 
 # SETUP
@@ -46,7 +48,7 @@ sleep(0.5)
 # VIDEO LOOP
 while True:
     frame = videostream.read()
-    frame = imutils.resize(frame, width=MAX_IMAGE_WIDTH)
+    frame = imutils.resize(frame, width=MAX_DISPLAY_WIDTH)
     overlay = deepcopy(frame)
     (h, w) = frame.shape[:2]
     blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)),
@@ -76,12 +78,14 @@ while True:
                 cooldown_benchmark = time()
                 blinking = True
                 cooldown = True
+                screenshot_frame = True
                 should_screenshot = True
 
 
             label = "{}: {:.2f}%".format(CLASSES[index],
                 confidence * 100)
-            if index == WEAPON_INDEX and blinking and (blink_count + 1) % 2 == 0:
+
+            if blinking and index == WEAPON_INDEX and (blink_count + 1) % 2 == 0:
                 cv2.rectangle(overlay, (startX, startY), (endX, endY),
                     COLORS[index], -1)
                 cv2.addWeighted(overlay, 0.5, frame, 0.5,
@@ -89,9 +93,11 @@ while True:
                 y = startY - 15 if startY - 15 > 15 else startY + 15
                 cv2.putText(frame, label, (startX, y),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, [255, 255, 255], 2)
+            if screenshot_frame and index == PERSON_INDEX:
+                screenshot_frame = False
             else:
                 cv2.rectangle(frame, (startX, startY), (endX, endY),
-                    COLORS[index], 3)
+                    COLORS[index], 2)
                 if index == WEAPON_INDEX:
                     y = startY - 15 if startY - 15 > 15 else startY + 15
                     cv2.putText(frame, label, (startX, y),
@@ -99,7 +105,7 @@ while True:
 
     if should_screenshot:
         should_screenshot = False
-        cv2.imwrite(cwd + "/images/" + "suspect.png", frame)
+        cv2.imwrite(cwd + "/images/" + "suspect.png", imutils.resize(frame, width=MAX_IMAGE_WIDTH))
         _thread.start_new_thread(send_alerts.image_alert, (cwd + "/images/" + "suspect.png",))
     if cooldown: 
         cv2.putText(frame, "THREAT DETECTED",
