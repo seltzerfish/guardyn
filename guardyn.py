@@ -1,14 +1,18 @@
 from imutils.video import VideoStream
 import numpy as np
 import imutils
-from time import sleep
+from time import sleep, time
 import cv2
 import png
+import _thread
+from copy import deepcopy
 import os
 from guardyn_utils import send_alerts
 
+# CONSTANTS
 cwd = str(os.getcwd())
-
+COOLDOWN_SECONDS = 10
+BLINK_DURATION = 14 # frames
 CONFIDENCE = 0.5
 WEAPON_CONFIDENCE = 0.85
 PERSON_INDEX = 15
@@ -25,22 +29,38 @@ COLORS = np.random.uniform(0, 255, size=(len(CLASSES), 3))
 COLORS[WEAPON_INDEX] = [0, 0, 255]
 COLORS[PERSON_INDEX] = [0, 255, 0]
 
+# VARIABLES
+should_screenshot = False
+blinking = False
+cooldown = False
+cooldown_benchmark = None
+blink_count = 0
 
+# SETUP
 print("Loading Tensorflow Model...")
 model = cv2.dnn.readNetFromCaffe(PROTOTXT, CAFFEMODEL)
 print("Starting VideoStream...")
 videostream = VideoStream().start()
 sleep(0.5)
-should_screenshot = False
-found = False
+
+# VIDEO LOOP
 while True:
     frame = videostream.read()
     frame = imutils.resize(frame, width=MAX_IMAGE_WIDTH)
-
+    overlay = deepcopy(frame)
     (h, w) = frame.shape[:2]
     blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)),
         0.007843, (300, 300), 127.5)
-
+    if blinking:
+        if blink_count > BLINK_DURATION:
+            blinking = False
+            blink_count = 0
+        else:
+            blink_count += 1
+    if cooldown:
+        if time() - cooldown_benchmark >= COOLDOWN_SECONDS:
+            cooldown = False
+            cooldown_benchmark = None
     model.setInput(blob)
     detections = model.forward()
     for i in np.arange(0, detections.shape[2]):
@@ -51,33 +71,43 @@ while True:
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             (startX, startY, endX, endY) = box.astype("int")
 
-            if index == WEAPON_INDEX and found == False and confidence >= WEAPON_CONFIDENCE:
-                found = True
+            if index == WEAPON_INDEX and confidence >= WEAPON_CONFIDENCE and not cooldown:
+                _thread.start_new_thread(send_alerts.text_alert, ("DANGEROUS WEAPON DETECTED NEARBY.",))
+                cooldown_benchmark = time()
+                blinking = True
+                cooldown = True
                 should_screenshot = True
-                send_alerts.text_alert("Dangerous weapon detected nearby")
+
 
             label = "{}: {:.2f}%".format(CLASSES[index],
                 confidence * 100)
-            cv2.rectangle(frame, (startX, startY), (endX, endY),
-                COLORS[index], 2)
-            y = startY - 15 if startY - 15 > 15 else startY + 15
-            cv2.putText(frame, label, (startX, y),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, [255, 255, 255], 2)
+            if index == WEAPON_INDEX and blinking and (blink_count + 1) % 2 == 0:
+                cv2.rectangle(overlay, (startX, startY), (endX, endY),
+                    COLORS[index], -1)
+                cv2.addWeighted(overlay, 0.5, frame, 0.5,
+                    0, frame)
+                y = startY - 15 if startY - 15 > 15 else startY + 15
+                cv2.putText(frame, label, (startX, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, [255, 255, 255], 2)
+            else:
+                cv2.rectangle(frame, (startX, startY), (endX, endY),
+                    COLORS[index], 3)
+                if index == WEAPON_INDEX:
+                    y = startY - 15 if startY - 15 > 15 else startY + 15
+                    cv2.putText(frame, label, (startX, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, [255, 255, 255], 2)
 
     if should_screenshot:
         should_screenshot = False
         cv2.imwrite(cwd + "/images/" + "suspect.png", frame)
+        _thread.start_new_thread(send_alerts.image_alert, (cwd + "/images/" + "suspect.png",))
+    if cooldown: 
+        cv2.putText(frame, "THREAT DETECTED",
+            (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
     cv2.imshow("Frame", frame)
     key = cv2.waitKey(1) & 0xFF
     if key == ord("q"):
         break
-    # fps.update()
 
-# stop the timer and display FPS information
-# fps.stop()
-# print("[INFO] elapsed time: {:.2f}".format(fps.elapsed()))
-# print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
-
-# do a bit of cleanup
 cv2.destroyAllWindows()
 videostream.stop()
