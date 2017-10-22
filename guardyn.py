@@ -18,7 +18,7 @@ WEAPON_CONFIDENCE = 0.85
 PERSON_INDEX = 15
 WEAPON_INDEX = 5
 MAX_IMAGE_WIDTH = 420
-MAX_DISPLAY_WIDTH = 850
+MAX_DISPLAY_WIDTH = 800
 CAFFEMODEL = cwd + "/models/" + "MobileNetSSD_deploy.caffemodel"
 PROTOTXT = cwd + "/models/" + "MobileNetSSD_deploy.prototxt.txt"
 
@@ -42,7 +42,7 @@ blink_count = 0
 print("Loading Tensorflow Model...")
 model = cv2.dnn.readNetFromCaffe(PROTOTXT, CAFFEMODEL)
 print("Starting VideoStream...")
-videostream = VideoStream().start()
+videostream = VideoStream(0).start()
 sleep(0.5)
 
 # VIDEO LOOP
