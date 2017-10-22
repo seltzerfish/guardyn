@@ -2,7 +2,7 @@ var functions = require('firebase-functions');
 var admin = require('firebase-admin');
 admin.initializeApp(functions.config().firebase);
 
-function sendAlert(message, attachImage, callback) {
+function sendAlert(id, message, attachImage, callback) {
 
     var msg = 'Possible Gunman in Hall XYZ';
     
@@ -14,12 +14,12 @@ function sendAlert(message, attachImage, callback) {
         notification: {
             'click_action': 'shooter_topic',
             'title': msg,
-            'sound': 'signal',
+            'event_id': id
         }
     };
 
     if (attachImage) {
-        payload.notification['content_available'] = 'true';
+        // payload.notification['content_available'] = 'true';
         payload.notification['mutable_content'] = 'true';
     } else {
         payload.notification['body'] = 'Seek cover and wait for authorities.';
@@ -30,23 +30,17 @@ function sendAlert(message, attachImage, callback) {
         .then(function(response) {
       
         console.log('Successfully sent message:', response);
-
-        if (callback != null) {
-            callback(null);
-        }
+        callback(null);
+        
     }).catch(function(error) {
 
         console.log('Error sending message:', error);
-        
-        if (callback != null) {            
-            callback(error);
-        }
+        callback(error);
 
     });
 }
 
 exports.sendAlert = functions.https.onRequest((req, res) => {
-    
     sendAlert(req.body.message, false, function(error) {
         if (error == null) {
             res.send('Payload Delivered.');
@@ -57,5 +51,21 @@ exports.sendAlert = functions.https.onRequest((req, res) => {
 });
 
 exports.sendSuspectMessage = functions.storage.object().onChange(event => {
-    sendAlert('Here\'s what the suspect looks like:', true, function(){});
+    console.log('Received trigger from file storage');
+
+    if (event.data.resourceState === 'not_exists') {
+        console.log('This is a deletion event.');
+        return true;
+    }
+
+    //setTimeout(function() {
+
+        sendAlert('IMAGE OF THE SUSPECT:', true, function(error) {
+            console.log('Sent suspect image.');
+        });  
+
+    //}, 1000);
+
+    return true;
 });
+
