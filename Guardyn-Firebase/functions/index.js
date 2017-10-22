@@ -67,6 +67,14 @@ function sendMessageAlert(title, callback) {
     
 exports.sendAlert = functions.https.onRequest((req, res) => {
 
+    sendAlert(req.body.message, req.body.subbody, function(error) {
+        if (error == null) {
+            res.send('Payload Delivered.');
+        } else {
+            res.send('Error sending notification:', error);
+        }
+    });
+
     function formatAMPM(date) {
         var hours = date.getHours();
         var minutes = date.getMinutes();
@@ -78,13 +86,15 @@ exports.sendAlert = functions.https.onRequest((req, res) => {
         return strTime;
     }
 
-    var timestamp = req.body.timestamp;
-    var timeString = formatAMPM(Date.parse(timestamp));
+    var timeString = formatAMPM(new Date());
 
     var detailsString = 'Deadly weapon detected in Hallway XYZ @ ' + timeString + '.';
     if (req.body.complexion != null) {
         detailsString += ' The suspect appeared to have a ' + req.body.complexion + ' complexion.';
     }
+
+    var timestamp = req.body.timestamp;
+    
     var suspectImageUrl = 'https://firebasestorage.googleapis.com/v0/b/guardyn-vh.appspot.com/o/images/'
         + 'suspect_' + timestamp;
     var faceImageUrl = 'https://firebasestorage.googleapis.com/v0/b/guardyn-vh.appspot.com/o/images/'
@@ -99,20 +109,10 @@ exports.sendAlert = functions.https.onRequest((req, res) => {
         details: detailsString,
         suspectImageUrl: suspectImageUrl,
         faceImageUrl: faceImageUrl,
-        locations: [],
-        tips: [],
-        timestamp: new Date().toUTCString()
+        timestamp: new Date().toISOString()
     }
     // Create Alert here
     admin.database().ref('/events').push(event);
-
-    sendAlert(req.body.message, req.body.subbody, function(error) {
-        if (error == null) {
-            res.send('Payload Delivered.');
-        } else {
-            res.send('Error sending notification:', error);
-        }
-    });
 });
 
 exports.sendSuspectMessage = functions.storage.object().onChange(event => {
