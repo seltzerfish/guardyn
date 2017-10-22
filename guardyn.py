@@ -7,7 +7,7 @@ import png
 import _thread
 from copy import deepcopy
 import os
-from guardyn_utils import send_alerts
+from guardyn_utils import send_alerts, scan_face
 
 # CONSTANTS
 cwd = str(os.getcwd())
@@ -19,6 +19,7 @@ PERSON_INDEX = 15
 WEAPON_INDEX = 5
 MAX_IMAGE_WIDTH = 420
 MAX_DISPLAY_WIDTH = 800
+ALERT_MESSAGE = "DEADLY WEAPON DETECTED NEARBY"
 CAFFEMODEL = cwd + "/models/" + "MobileNetSSD_deploy.caffemodel"
 PROTOTXT = cwd + "/models/" + "MobileNetSSD_deploy.prototxt.txt"
 
@@ -74,7 +75,7 @@ while True:
             (startX, startY, endX, endY) = box.astype("int")
 
             if index == WEAPON_INDEX and confidence >= WEAPON_CONFIDENCE and not cooldown:
-                _thread.start_new_thread(send_alerts.text_alert, ("DANGEROUS WEAPON DETECTED NEARBY.",))
+                # _thread.start_new_thread(send_alerts.text_alert, (ALERT_MESSAGE,))
                 cooldown_benchmark = time()
                 blinking = True
                 cooldown = True
@@ -105,8 +106,16 @@ while True:
 
     if should_screenshot:
         should_screenshot = False
+        skin_tone = scan_face.scan_face(frame)
+        if skin_tone:
+            _thread.start_new_thread(send_alerts.text_alert, (ALERT_MESSAGE, "Seek Shelter and wait for authorities.\nSuspect appers to have a " + skin_tone + " complexion.", skin_tone))
+        else:
+            _thread.start_new_thread(send_alerts.text_alert, (ALERT_MESSAGE, "Seek Shelter and wait for authorities."))
         cv2.imwrite(cwd + "/images/" + "suspect.png", imutils.resize(frame, width=MAX_IMAGE_WIDTH))
         _thread.start_new_thread(send_alerts.image_alert, (cwd + "/images/" + "suspect.png",))
+        if skin_tone:
+            _thread.start_new_thread(send_alerts.upload_face, (cwd + "/images/" + "face.png",))
+
     if cooldown: 
         cv2.putText(frame, "THREAT DETECTED",
             (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
