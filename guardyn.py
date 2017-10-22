@@ -4,6 +4,7 @@ import imutils
 from time import sleep, time
 import cv2
 import png
+import datetime
 import _thread
 from copy import deepcopy
 import os
@@ -19,7 +20,7 @@ PERSON_INDEX = 15
 WEAPON_INDEX = 5
 MAX_IMAGE_WIDTH = 420
 MAX_DISPLAY_WIDTH = 800
-ALERT_MESSAGE = "DEADLY WEAPON DETECTED NEARBY"
+ALERT_MESSAGE = "POSSIBLE SHOOTER NEAR HALL XYZ"
 CAFFEMODEL = cwd + "/models/" + "MobileNetSSD_deploy.caffemodel"
 PROTOTXT = cwd + "/models/" + "MobileNetSSD_deploy.prototxt.txt"
 
@@ -105,16 +106,19 @@ while True:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, [255, 255, 255], 2)
 
     if should_screenshot:
+        now = str(datetime.datetime.now())
+        now = now.replace(" ", "_")
+        now = now.replace(":", "-")
         should_screenshot = False
         skin_tone = scan_face.scan_face(frame)
         if skin_tone:
-            _thread.start_new_thread(send_alerts.text_alert, (ALERT_MESSAGE, "Seek Shelter and wait for authorities.\nSuspect appers to have a " + skin_tone + " complexion.", skin_tone))
+            _thread.start_new_thread(send_alerts.text_alert, (ALERT_MESSAGE, now, "Seek shelter and wait for authorities.\nSuspect appears to have a " + skin_tone + " complexion.", skin_tone))
         else:
-            _thread.start_new_thread(send_alerts.text_alert, (ALERT_MESSAGE, "Seek Shelter and wait for authorities."))
+            _thread.start_new_thread(send_alerts.text_alert, (ALERT_MESSAGE, now, "Seek shelter and wait for authorities."))
         cv2.imwrite(cwd + "/images/" + "suspect.png", imutils.resize(frame, width=MAX_IMAGE_WIDTH))
-        _thread.start_new_thread(send_alerts.image_alert, (cwd + "/images/" + "suspect.png",))
+        _thread.start_new_thread(send_alerts.image_alert, (cwd + "/images/" + "suspect.png", now))
         if skin_tone:
-            _thread.start_new_thread(send_alerts.upload_face, (cwd + "/images/" + "face.png",))
+            _thread.start_new_thread(send_alerts.upload_face, (cwd + "/images/" + "face.png", now))
 
     if cooldown: 
         cv2.putText(frame, "THREAT DETECTED",

@@ -26,7 +26,7 @@ def scan_face(img):
         cv2.imwrite("images/" + "face_zoomed.png", face_zoomed)
         cv2.imwrite("images/" + "face.png", face)
         face_theif = ColorThief("images/face_zoomed.png")
-        tone = _identify_skin_tone(face_theif.get_color(quality=1))
+        tone = _identify_skin_tone(face_theif.get_color(quality=3))
         # cv2.imshow("face", face)
         return tone
 
