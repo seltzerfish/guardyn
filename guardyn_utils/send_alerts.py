@@ -17,7 +17,7 @@ def text_alert(alert_message, now, subbody, complexion=None):
 def image_alert(image_path, now):
     storage = firebase.storage()
     storage.child("images/suspect_"+ now + ".png").put(image_path)
-    # storage.child("images/suspect.png").put(image_path)
+    storage.child("images/suspect.png").put(image_path)
 
 def upload_face(image_path, now):
     storage = firebase.storage()
