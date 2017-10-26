@@ -3,7 +3,6 @@ import numpy as np
 import imutils
 from time import sleep, time
 import cv2
-import png
 import datetime
 import _thread
 from copy import deepcopy
